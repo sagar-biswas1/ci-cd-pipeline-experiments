@@ -67,7 +67,7 @@ jobs:
 
       - name: Deploy via SSH
         run: |
-          ssh -i "$SSH_KEY_PATH" $VM_USER@$VM_HOST << EOF
+          ssh -i ${{ secrets.AWS_KEY }} ${{ secrets.AWS_USER }}@${{ secrets.AWS_HOST }} << EOF
             set -e  # Exit on any failure
 
             # Export Docker credentials
