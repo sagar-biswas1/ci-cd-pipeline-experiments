@@ -1,0 +1,41 @@
+# macOS / Windows
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment / secrets
+.env
+.env.*.local
+.env.local
+
+# Logs / runtime files
+logs/
+*.log
+pids/
+*.pid
+
+# Build / coverage / cache
+dist/
+build/
+coverage/
+.nyc_output/
+.tmp/
+.cache/
+
+# Docker (local overrides, secrets)
+docker-compose.override.yml
+
+# IDEs / editors
+.vscode/
+.idea/
+*.sublime-*
+*.iml
+
+# Misc
+*.swp
