@@ -45,7 +45,7 @@ jobs:
     env:
       VM_USER: fedora
       VM_HOST: 192.168.64.4
-      SSH_KEY_PATH: ~/Downloads/my-ci-cd-key
+      SSH_KEY_PATH: $HOME/Downloads/my-ci-cd-key
       DOCKER_USER: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASS: ${{ secrets.DOCKER_PASSWORD }}
 
@@ -53,22 +53,47 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Deploy to VM
+      - name: Ensure VM directories exist
         run: |
-          # Copy files using explicit key
+          ssh -i "$SSH_KEY_PATH" $VM_USER@$VM_HOST << EOF
+            mkdir -p ~/nginx
+          EOF
+
+      - name: Copy Files to VM
+        run: |
           scp -i "$SSH_KEY_PATH" docker-compose.yml $VM_USER@$VM_HOST:~/
           scp -i "$SSH_KEY_PATH" .env $VM_USER@$VM_HOST:~/
           scp -i "$SSH_KEY_PATH" ./nginx/default.conf $VM_USER@$VM_HOST:~/nginx/
 
-          # SSH using explicit key
-          ssh -i "$SSH_KEY_PATH" $VM_USER@$VM_HOST << 'EOF'
-            docker login -u $DOCKER_USER -p $DOCKER_PASS
-            docker pull $DOCKER_USER/note-app-backend:latest
-            docker pull $DOCKER_USER/note-app-frontend:latest
+      - name: Deploy via SSH
+        run: |
+          ssh -i "$SSH_KEY_PATH" $VM_USER@$VM_HOST << EOF
+            set -e  # Exit on any failure
+
+            # Export Docker credentials
+            export DOCKER_USER=$DOCKER_USER
+            export DOCKER_PASS=$DOCKER_PASS
+
+            # Login to Docker Hub
+            docker login -u \$DOCKER_USER -p \$DOCKER_PASS
+
+            # Pull latest images
+            docker pull \$DOCKER_USER/note-app-backend:latest
+            docker pull \$DOCKER_USER/note-app-frontend:latest
             docker pull mongo:latest
-            docker compose down || true
-            docker compose up -d
+
+            # Stop and remove existing containers safely
+            if docker compose ps -q | grep .; then
+              docker compose down
+            fi
+
+            # Start containers with updated images
+            docker compose up -d --remove-orphans
+
+            # Clean up dangling images
             docker image prune -af
+
+            echo "Deployment completed successfully."
           EOF
 
   # deploy:
