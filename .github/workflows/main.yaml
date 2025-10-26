@@ -41,7 +41,8 @@ jobs:
 
   deploy:
     needs: build-and-push
-    runs-on: ubuntu-latest
+    runs-on: self-hosted # <--- change here
+    # runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
 
     steps:
