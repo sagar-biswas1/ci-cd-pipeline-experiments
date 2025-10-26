@@ -38,57 +38,89 @@ jobs:
           context: ./frontend
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/note-app-frontend:latest
-
   deploy:
     needs: build-and-push
-    runs-on: self-hosted # <--- change here
-    # runs-on: ubuntu-latest
+    runs-on: self-hosted
     if: github.ref == 'refs/heads/main'
+    env:
+      VM_USER: fedora
+      VM_HOST: 192.168.64.4
+      SSH_KEY_PATH: ~/Downloads/my-ci-cd-key
+      DOCKER_USER: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASS: ${{ secrets.DOCKER_PASSWORD }}
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Deploy to EC2
-        # run: |
-        #   echo "${{ secrets.AWS_KEY }}" > private_key.pem
-        #   chmod 600 private_key.pem
-
-        #   scp -o StrictHostKeyChecking=no -i private_key.pem docker-compose.yml ${{ secrets.AWS_USER }}@${{ secrets.AWS_HOST }}:~/
-        #   scp -o StrictHostKeyChecking=no -i private_key.pem .env ${{ secrets.AWS_USER }}@${{ secrets.AWS_HOST }}:~/
-        #   scp -o StrictHostKeyChecking=no -i private_key.pem ./nginx/default.conf ${{ secrets.AWS_USER }}@${{ secrets.AWS_HOST }}:~/nginx/
-
-        #   ssh -o StrictHostKeyChecking=no -i private_key.pem ${{ secrets.AWS_USER }}@${{ secrets.AWS_HOST }} << 'EOF'
-        #     # Login to Docker Hub
-        #     docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
-
-        #     # Pull latest images
-        #     docker pull ${{ secrets.DOCKER_USERNAME }}/note-app-backend:latest
-        #     docker pull ${{ secrets.DOCKER_USERNAME }}/note-app-frontend:latest
-        #     docker pull mongo:latest
-
-        #     # Stop and remove existing containers
-        #     docker compose down || true
-
-        #     # Start services with docker compose
-        #     docker compose up -d
-
-        #     # Clean up old images
-        #     docker image prune -af
-        #   EOF
+      - name: Deploy to VM
         run: |
-          # Copy files to VM
-          scp -i ~/Downloads/my-ci-cd-key docker-compose.yml fedora@192.168.64.4:~/
-          scp -i ~/Downloads/my-ci-cd-key .env fedora@192.168.64.4:~/
-          scp -i ~/Downloads/my-ci-cd-key ./nginx/default.conf fedora@192.168.64.4:~/nginx/
+          # Copy files using explicit key
+          scp -i "$SSH_KEY_PATH" docker-compose.yml $VM_USER@$VM_HOST:~/
+          scp -i "$SSH_KEY_PATH" .env $VM_USER@$VM_HOST:~/
+          scp -i "$SSH_KEY_PATH" ./nginx/default.conf $VM_USER@$VM_HOST:~/nginx/
 
-          # SSH into VM and deploy Docker containers
-          ssh -i ~/Downloads/my-ci-cd-key fedora@192.168.64.4 << 'EOF'
-            docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
-            docker pull ${{ secrets.DOCKER_USERNAME }}/note-app-backend:latest
-            docker pull ${{ secrets.DOCKER_USERNAME }}/note-app-frontend:latest
+          # SSH using explicit key
+          ssh -i "$SSH_KEY_PATH" $VM_USER@$VM_HOST << 'EOF'
+            docker login -u $DOCKER_USER -p $DOCKER_PASS
+            docker pull $DOCKER_USER/note-app-backend:latest
+            docker pull $DOCKER_USER/note-app-frontend:latest
             docker pull mongo:latest
             docker compose down || true
             docker compose up -d
             docker image prune -af
           EOF
+
+  # deploy:
+  #   needs: build-and-push
+  #   runs-on: self-hosted # <--- change here
+  #   # runs-on: ubuntu-latest
+  #   if: github.ref == 'refs/heads/main'
+
+  #   steps:
+  #     - name: Checkout Code
+  #       uses: actions/checkout@v3
+
+  #     - name: Deploy to EC2
+  #       # run: |
+  #       #   echo "${{ secrets.AWS_KEY }}" > private_key.pem
+  #       #   chmod 600 private_key.pem
+
+  #       #   scp -o StrictHostKeyChecking=no -i private_key.pem docker-compose.yml ${{ secrets.AWS_USER }}@${{ secrets.AWS_HOST }}:~/
+  #       #   scp -o StrictHostKeyChecking=no -i private_key.pem .env ${{ secrets.AWS_USER }}@${{ secrets.AWS_HOST }}:~/
+  #       #   scp -o StrictHostKeyChecking=no -i private_key.pem ./nginx/default.conf ${{ secrets.AWS_USER }}@${{ secrets.AWS_HOST }}:~/nginx/
+
+  #       #   ssh -o StrictHostKeyChecking=no -i private_key.pem ${{ secrets.AWS_USER }}@${{ secrets.AWS_HOST }} << 'EOF'
+  #       #     # Login to Docker Hub
+  #       #     docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+
+  #       #     # Pull latest images
+  #       #     docker pull ${{ secrets.DOCKER_USERNAME }}/note-app-backend:latest
+  #       #     docker pull ${{ secrets.DOCKER_USERNAME }}/note-app-frontend:latest
+  #       #     docker pull mongo:latest
+
+  #       #     # Stop and remove existing containers
+  #       #     docker compose down || true
+
+  #       #     # Start services with docker compose
+  #       #     docker compose up -d
+
+  #       #     # Clean up old images
+  #       #     docker image prune -af
+  #       #   EOF
+  #       run: |
+  #         # Copy files to VM
+  #         scp -i ~/Downloads/my-ci-cd-key docker-compose.yml fedora@192.168.64.4:~/
+  #         scp -i ~/Downloads/my-ci-cd-key .env fedora@192.168.64.4:~/
+  #         scp -i ~/Downloads/my-ci-cd-key ./nginx/default.conf fedora@192.168.64.4:~/nginx/
+
+  #         # SSH into VM and deploy Docker containers
+  #         ssh -i ~/Downloads/my-ci-cd-key fedora@192.168.64.4 << 'EOF'
+  #           docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+  #           docker pull ${{ secrets.DOCKER_USERNAME }}/note-app-backend:latest
+  #           docker pull ${{ secrets.DOCKER_USERNAME }}/note-app-frontend:latest
+  #           docker pull mongo:latest
+  #           docker compose down || true
+  #           docker compose up -d
+  #           docker image prune -af
+  #         EOF
