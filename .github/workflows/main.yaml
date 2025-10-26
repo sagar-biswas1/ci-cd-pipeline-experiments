@@ -45,7 +45,7 @@ jobs:
     env:
       VM_USER: fedora
       VM_HOST: 192.168.64.4
-      SSH_KEY_PATH: $HOME/Downloads/my-ci-cd-key
+      SSH_KEY_PATH: ${{ secrets.AWS_KEY }}
       DOCKER_USER: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASS: ${{ secrets.DOCKER_PASSWORD }}
 
